@@ -28,8 +28,8 @@
     }
   ],
   "vars": {
-    "EMAIL_DOMAIN": "sl.example.com",
-    "ALIAS_DOMAINS": "sl.example.com",
+    "EMAIL_DOMAIN": "sl-test.wahdany.eu",
+    "ALIAS_DOMAINS": "sl-test.wahdany.eu",
     "PREMIUM_ALIAS_DOMAINS": "",
     "URL": "https://simplelogin.dariush-5fc.workers.dev",
     "MAX_NB_EMAIL_FREE_PLAN": "3"
