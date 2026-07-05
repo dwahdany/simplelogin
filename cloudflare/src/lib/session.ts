@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { getCookie, setCookie, deleteCookie } from "hono/cookie";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { Env } from "./env";
 
 /**
@@ -11,9 +11,21 @@ export const SESSION_COOKIE = "slapp";
 const SESSION_TTL_SECS = 7 * 24 * 3600; // Flask REMEMBER_COOKIE_DURATION = 7 days
 
 export interface SessionData {
-  user_id: number;
+  /** absent = anonymous session (pre-login flash messages / CSRF) */
+  user_id?: number;
+  /**
+   * users.alternative_id at login time; regenerated on password reset to
+   * kill other sessions, so the web user-loader compares it per request.
+   */
+  alternative_id?: string;
   /** unix seconds when sudo mode was entered from the web dashboard */
   sudo_time?: number;
+  /** pending flash messages, consumed on next page render */
+  flashes?: Array<{ category: string; message: string }>;
+  /** per-session CSRF secret (flask-wtf session["csrf_token"] equivalent) */
+  csrf?: string;
+  /** interstitial state (MFA-in-progress user id, next URL, ...) */
+  extra?: Record<string, unknown>;
 }
 
 function randomToken(): string {
@@ -28,10 +40,11 @@ function randomToken(): string {
 export async function createSession<E extends { Bindings: Env }>(
   c: Context<E>,
   userId: number,
+  data: Omit<SessionData, "user_id"> = {},
 ): Promise<void> {
   const token = randomToken();
-  const data: SessionData = { user_id: userId };
-  await c.env.KV.put(`session:${token}`, JSON.stringify(data), {
+  const full: SessionData = { ...data, user_id: userId };
+  await c.env.KV.put(`session:${token}`, JSON.stringify(full), {
     expirationTtl: SESSION_TTL_SECS,
   });
   setCookie(c, SESSION_COOKIE, token, {
@@ -43,6 +56,32 @@ export async function createSession<E extends { Bindings: Env }>(
   });
 }
 
+/**
+ * Persist changes to the CURRENT session (same token). When no session
+ * cookie exists yet, an anonymous session is created — Flask equivalent:
+ * writing to `session` from a pre-login view (flashes, CSRF secret, MFA
+ * interstitial state).
+ */
+export async function saveSession<E extends { Bindings: Env }>(
+  c: Context<E>,
+  data: SessionData,
+): Promise<void> {
+  let token = getCookie(c, SESSION_COOKIE);
+  if (!token) {
+    token = randomToken();
+    setCookie(c, SESSION_COOKIE, token, {
+      path: "/",
+      httpOnly: true,
+      secure: true,
+      sameSite: "Lax",
+      maxAge: SESSION_TTL_SECS,
+    });
+  }
+  await c.env.KV.put(`session:${token}`, JSON.stringify(data), {
+    expirationTtl: SESSION_TTL_SECS,
+  });
+}
+
 export async function getSession<E extends { Bindings: Env }>(
   c: Context<E>,
 ): Promise<SessionData | null> {
@@ -50,6 +89,30 @@ export async function getSession<E extends { Bindings: Env }>(
   if (!token) return null;
   const raw = await c.env.KV.get(`session:${token}`);
   return raw ? (JSON.parse(raw) as SessionData) : null;
+}
+
+/**
+ * Rotate the session token (Flask regenerates the session id on login) —
+ * deletes the old KV entry, stores `data` under a fresh token, sets the
+ * cookie. Existing session data the caller wants to keep must be passed in.
+ */
+export async function rotateSession<E extends { Bindings: Env }>(
+  c: Context<E>,
+  data: SessionData,
+): Promise<void> {
+  const old = getCookie(c, SESSION_COOKIE);
+  if (old) await c.env.KV.delete(`session:${old}`);
+  const token = randomToken();
+  await c.env.KV.put(`session:${token}`, JSON.stringify(data), {
+    expirationTtl: SESSION_TTL_SECS,
+  });
+  setCookie(c, SESSION_COOKIE, token, {
+    path: "/",
+    httpOnly: true,
+    secure: true,
+    sameSite: "Lax",
+    maxAge: SESSION_TTL_SECS,
+  });
 }
 
 export async function destroySession<E extends { Bindings: Env }>(

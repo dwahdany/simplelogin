@@ -72,14 +72,19 @@ export function rateLimit(
     let subject: string;
     if (keyBy === "user") {
       subject = `user:${c.get("user").id}`;
-    } else if (keyBy === "default" && c.get("session")) {
+    } else if (keyBy === "default" && c.get("session")?.user_id != null) {
       subject = `user:${c.get("session")!.user_id}`;
     } else {
       subject = `ip:${clientIp(c.req.raw.headers)}`;
     }
     const now = Date.now() / 1000;
     for (const win of windows) {
-      const count = await hitWindow(c.env.DB, `rl:${name}:${subject}`, win, now);
+      const count = await hitWindow(
+        c.env.DB,
+        `rl:${name}:${subject}`,
+        win,
+        now,
+      );
       if (count > win.limit) return rateLimited(c);
     }
     return next();
@@ -95,7 +100,9 @@ export function requestLock(name: string): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
     if (c.env.DISABLE_RATE_LIMIT) return next();
     const user = c.get("user");
-    const subject = user ? `user:${user.id}` : `ip:${clientIp(c.req.raw.headers)}`;
+    const subject = user
+      ? `user:${user.id}`
+      : `ip:${clientIp(c.req.raw.headers)}`;
     const key = `lock:${subject}:${name}`;
     const now = Math.floor(Date.now() / 1000);
     const acquired = await c.env.DB.prepare(

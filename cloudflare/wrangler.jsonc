@@ -18,6 +18,10 @@
       "id": "REPLACE_WITH_KV_NAMESPACE_ID"
     }
   ],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
   "send_email": [
     {
       "name": "SEND_EMAIL"
@@ -28,7 +32,6 @@
     "ALIAS_DOMAINS": "sl.example.com",
     "PREMIUM_ALIAS_DOMAINS": "",
     "URL": "https://app.sl.example.com",
-    "MAX_NB_EMAIL_FREE_PLAN": "3",
-    "DISABLE_REGISTRATION": "0"
+    "MAX_NB_EMAIL_FREE_PLAN": "3"
   }
 }
