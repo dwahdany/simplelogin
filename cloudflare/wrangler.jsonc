@@ -8,14 +8,14 @@
     {
       "binding": "DB",
       "database_name": "simplelogin",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "2cafc7a6-19ff-4e2c-af65-83929c015c6c",
       "migrations_dir": "migrations"
     }
   ],
   "kv_namespaces": [
     {
       "binding": "KV",
-      "id": "REPLACE_WITH_KV_NAMESPACE_ID"
+      "id": "fcbb3c9c9d504d3c8b4e29a14c9eafab"
     }
   ],
   "assets": {
@@ -31,7 +31,7 @@
     "EMAIL_DOMAIN": "sl.example.com",
     "ALIAS_DOMAINS": "sl.example.com",
     "PREMIUM_ALIAS_DOMAINS": "",
-    "URL": "https://app.sl.example.com",
+    "URL": "https://simplelogin.dariush-5fc.workers.dev",
     "MAX_NB_EMAIL_FREE_PLAN": "3"
   }
 }
