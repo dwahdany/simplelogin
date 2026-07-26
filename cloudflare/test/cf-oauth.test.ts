@@ -831,6 +831,81 @@ describe("GET /cloudflare/callback", () => {
     }
   });
 
+  /**
+   * The live deployment's shape: `account.read` is not grantable, so
+   * /accounts 403s and the account identity has to come from the zone the
+   * liveness probe already read — no extra scope, no "unnamed" panel.
+   */
+  it("without account.read, the account is recovered from the probed zone", async () => {
+    fake.accountsStatus = 403;
+    fake.accountsBody = {
+      success: false,
+      errors: [
+        { code: 9109, message: "Unauthorized to access requested resource" },
+      ],
+      result: null,
+    };
+    fake.zonesBody = {
+      success: true,
+      errors: [],
+      result: [
+        {
+          id: "zone-1",
+          name: "wahdany.eu",
+          account: { id: "acc-9", name: "Dariush@wahdany.de" },
+        },
+      ],
+    };
+    const user = await createUser(env.DB);
+    const cookie = await sessionCookieFor(user.id);
+    await startConnect(cookie);
+    const attempt = await pendingAttempt(cookie);
+    await get(
+      `/dashboard/cloudflare/callback?code=c&state=${encodeURIComponent(attempt?.state ?? "")}`,
+      cookie,
+    );
+    // The grant is stored (a /accounts 403 is NOT fatal) and named.
+    const row = await tokenRow(user.id);
+    expect(row).not.toBeNull();
+    expect(row?.cf_account_id).toBe("acc-9");
+    expect(row?.cf_account_name).toBe("Dariush@wahdany.de");
+    const fl = await flashes(cookie);
+    expect(fl[0].category).toBe("success");
+    expect(fl[0].message).toContain("Dariush@wahdany.de");
+  });
+
+  it("a zone-derived account never satisfies the CF_ACCOUNT_ID pin", async () => {
+    // per_page=1 sees ONE zone, which says nothing about which accounts the
+    // grant can reach — so it must not be able to answer the pin check.
+    envx.CF_ACCOUNT_ID = "acc-2";
+    fake.accountsStatus = 403;
+    fake.accountsBody = { success: false, errors: [], result: null };
+    fake.zonesBody = {
+      success: true,
+      errors: [],
+      result: [
+        { id: "z", name: "other.example", account: { id: "acc-1", name: "X" } },
+      ],
+    };
+    try {
+      const user = await createUser(env.DB);
+      const cookie = await sessionCookieFor(user.id);
+      await startConnect(cookie);
+      const attempt = await pendingAttempt(cookie);
+      await get(
+        `/dashboard/cloudflare/callback?code=c&state=${encodeURIComponent(attempt?.state ?? "")}`,
+        cookie,
+      );
+      // Pin unverifiable => fails OPEN (stored), and acc-1 is recorded for
+      // display only; provisioning still re-checks per zone.
+      const row = await tokenRow(user.id);
+      expect(row).not.toBeNull();
+      expect(row?.cf_account_id).toBe("acc-1");
+    } finally {
+      envx.CF_ACCOUNT_ID = "";
+    }
+  });
+
   it("callback carries no redirect parameter: a next= is ignored (no open redirect)", async () => {
     const user = await createUser(env.DB);
     const cookie = await sessionCookieFor(user.id);
