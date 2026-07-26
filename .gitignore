@@ -16,3 +16,6 @@ htmlcov
 adhoc
 .env.*
 .claude/
+
+# wrangler local state (repo root; cloudflare/.gitignore covers the subdir)
+.wrangler/
