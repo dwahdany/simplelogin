@@ -28,9 +28,10 @@ verification, and domain provisioning/backup tooling (see §4a).
 - **Plan:** Workers **Paid** (enables Email Sending, higher CPU/D1 limits).
 - **Provisioned resources** (ids live in `wrangler.jsonc`): D1 `simplelogin`
   (`2cafc7a6-…`), KV (`fcbb3c9c-…`), `send_email` binding `SEND_EMAIL`, static
-  `ASSETS`. Secrets set via `wrangler secret put`: `FLASK_SECRET`,
-  `DKIM_PRIVATE_KEY` (RSA-2048; public key published at
-  `dkim._domainkey.sl-test.wahdany.eu`).
+  `ASSETS`. Secrets set via `wrangler secret put`: `FLASK_SECRET`. (The
+  worker-side DKIM key `DKIM_PRIVATE_KEY` was removed on 2026-09-03: all
+  outbound mail leaves through Email Sending, which signs with `cf-bounce`;
+  `src/lib/dkim.ts` stays inert without the secret.)
 - **Verified end-to-end with real mail:** register → activation code → login →
   API key → alias creation → inbound forward (reverse-alias From, Cloudflare
   DKIM, DMARC pass) → reply through the reverse alias delivered to the contact.
@@ -248,7 +249,8 @@ Cloudflare DKIM instead of Postfix; `ts_vector` search → LIKE approximation.
 From `cloudflare/` with `nvm use 22` (or the equivalent Node 22):
 - Deploy: `npm run deploy` (predeploy builds templates + assets).
 - Migrations: `npx wrangler d1 migrations apply simplelogin --remote`.
-- Secrets: `npx wrangler secret put FLASK_SECRET` / `DKIM_PRIVATE_KEY`.
+- Secrets: `npx wrangler secret put FLASK_SECRET`. Do not set `DKIM_PRIVATE_KEY`:
+  Email Sending signs; a second, unpublished signature only fails.
 - New domain: follow `docs/DOMAINS.md`. Short version: zone into the account,
   `CLOUDFLARE_API_TOKEN=... node scripts/provision-domain.mjs --zone <domain>
   --dmarc` (Email Routing + catch-all + DMARC), onboard Email Sending in the

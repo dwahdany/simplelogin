@@ -83,8 +83,9 @@ Operator-only. In order:
      (transactional mail From, default suffix, `include:` target of custom
      domains' SPF guidance).
    - `PREMIUM_ALIAS_DOMAINS` — if it should count as premium.
-   `ALIAS_DOMAINS` additionally gates worker-side DKIM signing
-   (`src/lib/dkim.ts`) and hostname handling in the email worker.
+   `ALIAS_DOMAINS` additionally gates directory auto-creation in the email
+   worker (and worker-side DKIM signing, which this deployment does not use —
+   step 5).
 4. **Redeploy** — vars ship with the worker:
 
    ```sh
@@ -92,10 +93,11 @@ Operator-only. In order:
    npm run deploy
    ```
 
-5. **(Optional) worker-side DKIM fallback** — publish the
-   `DKIM_PRIVATE_KEY` public key as TXT at `dkim._domainkey.<domain>`. Only
-   relevant where Email Sending is not signing; also serves as the CNAME
-   target for custom domains' DKIM records (see below).
+5. **DKIM is Cloudflare's.** Email Sending onboarding (step 1.4) makes
+   Cloudflare sign with selector `cf-bounce`; that is the only signature this
+   deployment produces. The worker-side fallback (`DKIM_PRIVATE_KEY`,
+   `src/lib/dkim.ts`) was dropped on 2026-09-03 — do not set the secret and do
+   not publish `dkim._domainkey` records.
 6. **Verify end-to-end** before announcing: create an alias on the new
    domain, mail it from an external account (Gmail), confirm delivery and —
    under `rewrite` — check "Show original": `SPF: PASS`, `DKIM: PASS` with
@@ -123,9 +125,8 @@ parentheses are what this deployment expects:
 3. **SPF TXT** — `v=spf1 include:_spf.mx.cloudflare.net ~all` (deviation
    from upstream SimpleLogin, which says `include:<EMAIL_DOMAIN>`: replies
    sent for the domain leave Cloudflare's infrastructure).
-4. **DKIM CNAMEs** — `dkim._domainkey`, `dkim02._domainkey`,
-   `dkim03._domainkey` → the same label on `EMAIL_DOMAIN` (only the primary
-   is required for the "verified" badge).
+4. **DKIM** — comes from Email Sending onboarding of the domain
+   (`cf-bounce._domainkey`, created by Cloudflare); no CNAMEs to add.
 5. **DMARC TXT** — `v=DMARC1; p=quarantine; pct=100; adkim=s; aspf=s`.
 
 SPF/DKIM/DMARC are optional for receiving but affect deliverability of mail

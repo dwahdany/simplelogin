@@ -39,10 +39,16 @@
     "enabled": true
   },
   "vars": {
-    "EMAIL_DOMAIN": "sl-test.wahdany.eu",
-    "ALIAS_DOMAINS": "sl-test.wahdany.eu",
+    // Default domain: reverse aliases, noreply@ and VERP live here. Moved from
+    // sl-test.wahdany.eu on 2026-09-03 when that subdomain was retired; the
+    // old domain stays in ALIAS_DOMAINS so its two remaining aliases keep
+    // resolving until they are deleted (public_domain row is hidden).
+    "EMAIL_DOMAIN": "fi.wahdany.eu",
+    "ALIAS_DOMAINS": "fi.wahdany.eu,sl-test.wahdany.eu",
     "PREMIUM_ALIAS_DOMAINS": "",
-    "URL": "https://simplelogin.dariush-5fc.workers.dev",
+    // The worker's own hostname (custom domain route); the workers.dev host
+    // answers 404, so links in mail must not point there.
+    "URL": "https://sl.wahdany.eu",
     "MAX_NB_EMAIL_FREE_PLAN": "3",
     // Presence-based (any value, even "0", closes signups). Single-operator
     // deployment: strangers must not be able to register.
@@ -54,7 +60,8 @@
     // "rewrite" = Flask-parity forwards (From = reverse alias) via SEND_EMAIL;
     // requires the domain onboarded onto Email Sending (paid) or strict
     // receivers reject the mail. "passthrough" = message.forward() as-is.
-    // Email Sending onboarded for sl-test.wahdany.eu on 2026-07-06.
+    // Email Sending onboarded for sl-test.wahdany.eu on 2026-07-06 and for
+    // fi.wahdany.eu (cf-bounce DKIM present) by 2026-09-03.
     "FORWARD_MODE": "rewrite"
   }
 }
